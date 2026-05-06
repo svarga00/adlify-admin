@@ -100,9 +100,7 @@ window.Cases = {
       sort_order: 0,
     };
 
-    const drawer = Utils.openDrawer(`${isNew ? 'Pridať' : 'Upraviť'} prípadovku`);
-    drawer.body.innerHTML = `
-      <form id="case-form" class="space-y-5">
+    const drawer = Utils.drawer(`${isNew ? 'Pridať' : 'Upraviť'} prípadovku`, `<form id="case-form" class="space-y-5">
 
         <!-- ZÁKLADNÉ -->
         <div class="bg-gray-50 rounded-xl p-4 space-y-4">
@@ -217,7 +215,7 @@ window.Cases = {
           </button>
         </div>
       </form>
-    `;
+    `);
 
     // Bind i18n switchers + translate buttons
     I18N.bindFieldSwitchers(drawer.body);
@@ -268,6 +266,9 @@ window.Cases = {
       e.preventDefault();
       await this.save(item, drawer);
     });
+
+    // Cancel button
+    drawer.body.querySelector('[data-close]')?.addEventListener('click', () => drawer.close());
   },
 
   collectKPIs(kpiList) {
@@ -315,7 +316,7 @@ window.Cases = {
       }
 
       Utils.toast('✓ Uložené', 'success');
-      Utils.closeDrawer();
+      drawer.close();
       this.render();
     } catch (err) {
       console.error(err);
