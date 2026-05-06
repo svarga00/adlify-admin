@@ -110,9 +110,12 @@
   <!-- Main app shell (shown when authenticated) -->
   <div id="app-shell" class="hidden min-h-screen flex">
 
+    <!-- Sidebar backdrop (mobile only, click to close) -->
+    <div id="sidebar-backdrop" class="hidden md:hidden fixed inset-0 bg-black/40 z-30"></div>
+
     <!-- Sidebar -->
-    <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col fixed top-0 bottom-0 left-0 z-40 transition-transform">
-      <div class="px-6 py-5 border-b border-gray-200">
+    <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col fixed top-0 bottom-0 left-0 z-40 transition-transform -translate-x-full md:translate-x-0">
+      <div class="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-pink-500 text-white font-bold flex items-center justify-center text-sm">A</div>
           <div>
@@ -120,6 +123,9 @@
             <div class="text-xs text-gray-500">adlify.eu</div>
           </div>
         </div>
+        <button id="sidebar-close" class="md:hidden p-1.5 -mr-1 text-gray-500 hover:text-gray-900" aria-label="Zavrieť menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
 
       <nav id="sidebar-nav" class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
@@ -136,27 +142,27 @@
     </aside>
 
     <!-- Main content -->
-    <div class="flex-1 ml-64">
+    <div class="flex-1 md:ml-64 min-w-0">
       <!-- Top bar -->
-      <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 h-14 flex items-center px-6 gap-4">
-        <button id="sidebar-toggle" class="md:hidden p-2 -ml-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <header class="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200 h-14 flex items-center px-4 md:px-6 gap-2 md:gap-4">
+        <button id="sidebar-toggle" class="md:hidden p-2 -ml-2 text-gray-700 hover:text-gray-900" aria-label="Otvoriť menu">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
 
-        <div class="flex-1">
-          <h2 id="page-title" class="text-base font-semibold text-gray-900">Dashboard</h2>
+        <div class="flex-1 min-w-0">
+          <h2 id="page-title" class="text-base font-semibold text-gray-900 truncate">Dashboard</h2>
         </div>
 
-        <!-- Publish button -->
+        <!-- Publish button (kompaktný na mobile) -->
         <button id="publish-btn"
-          class="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-500 to-pink-500 text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition">
+          class="inline-flex items-center gap-1.5 px-3 md:px-4 py-2 bg-gradient-to-r from-brand-500 to-pink-500 text-white text-xs md:text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition flex-shrink-0">
           <span>📤</span>
-          <span>Publikovať</span>
+          <span class="hidden sm:inline">Publikovať</span>
         </button>
       </header>
 
-      <!-- Page content (each page module injects here) -->
-      <main id="page-content" class="p-6">
+      <!-- Page content -->
+      <main id="page-content" class="p-4 md:p-6">
         <div class="text-center py-20 text-gray-400">
           <div class="text-4xl mb-2">⏳</div>
           <p class="text-sm">Načítavam…</p>
