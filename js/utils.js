@@ -79,15 +79,15 @@ window.Utils = {
     const wrap = document.createElement('div');
     wrap.innerHTML = `
       <div class="drawer-backdrop fixed inset-0 bg-black/50 backdrop-blur-sm z-50 opacity-0 transition-opacity"></div>
-      <aside class="drawer-panel fixed top-0 right-0 h-full w-full max-w-2xl bg-white z-50 flex flex-col translate-x-full transition-transform duration-300 shadow-2xl">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-900">${this.escape(title)}</h2>
-          <button class="drawer-close w-9 h-9 rounded-full border border-gray-200 hover:bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+      <aside class="drawer-panel fixed top-0 right-0 h-full w-full md:max-w-2xl bg-white z-50 flex flex-col translate-x-full transition-transform duration-300 shadow-2xl">
+        <div class="px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 flex items-center justify-between gap-3 sticky top-0 bg-white z-10">
+          <h2 class="text-base md:text-lg font-semibold text-gray-900 truncate">${this.escape(title)}</h2>
+          <button class="drawer-close w-9 h-9 rounded-full border border-gray-200 hover:bg-gray-100 flex items-center justify-center text-gray-500 flex-shrink-0">✕</button>
         </div>
-        <div class="drawer-body flex-1 overflow-y-auto p-6">
+        <div class="drawer-body flex-1 overflow-y-auto p-4 md:p-6">
           ${bodyHtml}
         </div>
-        ${opts.footer ? `<div class="drawer-footer px-6 py-4 border-t border-gray-200 flex justify-end gap-2">${opts.footer}</div>` : ''}
+        ${opts.footer ? `<div class="drawer-footer px-4 md:px-6 py-3 md:py-4 border-t border-gray-200 flex justify-end gap-2">${opts.footer}</div>` : ''}
       </aside>
     `;
     document.body.appendChild(wrap);
