@@ -103,7 +103,7 @@ window.Cases = {
     const drawer = Utils.drawer(`${isNew ? 'Pridať' : 'Upraviť'} prípadovku`, `<form id="case-form" class="space-y-5">
 
         <!-- TRANSLATE ALL banner -->
-        <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex items-center justify-between gap-3">
+        <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div class="flex-1 min-w-0">
             <div class="text-sm font-semibold text-gray-900">Hromadný preklad všetkých polí</div>
             <div class="text-xs text-gray-600 mt-0.5">Preloží všetky SK polia naraz do CS / HU / EN / DE. Existujúce preklady sa prepíšu.</div>
@@ -126,7 +126,7 @@ window.Cases = {
             <p class="text-xs text-gray-500 mt-1">Bude na URL: /pripadove-studie/<span class="font-mono">slug</span></p>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Kategória</label>
               <select name="category" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
@@ -150,7 +150,7 @@ window.Cases = {
         <!-- METRIKY (karta) -->
         <div class="bg-gray-50 rounded-xl p-4 space-y-4">
           <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Karta — 2 hlavné metriky</div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>${I18N.renderField('metric_a_label', data.metric_a_label, { label: 'Metrika A — popis' })}</div>
             <div>${I18N.renderField('metric_a_value', data.metric_a_value, { label: 'Metrika A — hodnota (+284%)' })}</div>
             <div>${I18N.renderField('metric_b_label', data.metric_b_label, { label: 'Metrika B — popis' })}</div>
@@ -173,7 +173,7 @@ window.Cases = {
         <div class="bg-gray-50 rounded-xl p-4 space-y-4">
           <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Detail stránka — meta</div>
           ${I18N.renderField('hero_subtitle', data.hero_subtitle, { label: 'Hero subtitle (pod názvom)', type: 'textarea', rows: 2 })}
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>${I18N.renderField('industry', data.industry, { label: 'Odvetvie' })}</div>
             <div>${I18N.renderField('duration', data.duration, { label: 'Trvanie' })}</div>
             <div>${I18N.renderField('budget', data.budget, { label: 'Reklamný budget' })}</div>
@@ -299,16 +299,30 @@ window.Cases = {
     const kpiList = drawer.body.querySelector('#kpi-list');
     const renderKPIs = (kpis) => {
       kpiList.innerHTML = (kpis || []).map((k, i) => `
-        <div class="grid grid-cols-12 gap-2 items-center" data-kpi-row="${i}">
-          <input type="text" placeholder="Label (Tržby)" value="${Utils.escape(k.label || '')}" data-kpi-field="label"
-            class="col-span-3 px-2 py-1.5 border border-gray-300 rounded text-sm">
-          <input type="text" placeholder="Pred" value="${Utils.escape(k.before || '')}" data-kpi-field="before"
-            class="col-span-3 px-2 py-1.5 border border-gray-300 rounded text-sm">
-          <input type="text" placeholder="Po" value="${Utils.escape(k.after || '')}" data-kpi-field="after"
-            class="col-span-3 px-2 py-1.5 border border-gray-300 rounded text-sm">
-          <input type="text" placeholder="Delta" value="${Utils.escape(k.delta || '')}" data-kpi-field="delta"
-            class="col-span-2 px-2 py-1.5 border border-gray-300 rounded text-sm">
-          <button type="button" data-kpi-remove="${i}" class="col-span-1 text-red-500 hover:bg-red-50 rounded">🗑</button>
+        <div class="bg-white border border-gray-200 rounded-lg p-3 relative" data-kpi-row="${i}">
+          <button type="button" data-kpi-remove="${i}" class="absolute top-2 right-2 w-7 h-7 text-red-500 hover:bg-red-50 rounded-full flex items-center justify-center" title="Zmazať">🗑</button>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pr-9">
+            <div class="col-span-2 sm:col-span-1">
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Label</label>
+              <input type="text" placeholder="Tržby" value="${Utils.escape(k.label || '')}" data-kpi-field="label"
+                class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Pred</label>
+              <input type="text" placeholder="€180k" value="${Utils.escape(k.before || '')}" data-kpi-field="before"
+                class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Po</label>
+              <input type="text" placeholder="€520k" value="${Utils.escape(k.after || '')}" data-kpi-field="after"
+                class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+            </div>
+            <div class="col-span-2 sm:col-span-1">
+              <label class="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Delta</label>
+              <input type="text" placeholder="+189%" value="${Utils.escape(k.delta || '')}" data-kpi-field="delta"
+                class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm">
+            </div>
+          </div>
         </div>
       `).join('');
 
