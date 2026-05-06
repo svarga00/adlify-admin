@@ -1,21 +1,22 @@
 // js/pages/pages_content.js
-// Sekcie stránok — Hero, Manifest, Calculator, Process steps, Marquee, Before/After
+// Sekcie stránok — Process steps + Marquee
 
 window.PagesContent = {
-  // Process steps majú vlastnú tabuľku
   PROCESS_TABLE: 'web_process_steps',
   MARQUEE_TABLE: 'web_marquee',
 
-  state: {
-    activeSection: 'process',
-  },
-
   SECTIONS: [
-    { key: 'process',    label: '4 procesné kroky',    icon: '🔢' },
-    { key: 'marquee',    label: 'Rolujúce slová',     icon: '🎢' },
+    { key: 'process',  label: '4 procesné kroky', icon: '🔢' },
+    { key: 'marquee',  label: 'Rolujúce slová',  icon: '🎢' },
   ],
 
+  // State sa nastaví pri kazdom render() — preto NIE je default v inicializácii
+  _activeSection: null,
+
   async render() {
+    // RESET state pri každom načítaní stránky
+    if (!this._activeSection) this._activeSection = 'process';
+
     const content = document.getElementById('page-content');
     content.innerHTML = `
       <div class="max-w-4xl mx-auto">
@@ -27,7 +28,7 @@ window.PagesContent = {
 
         <div class="flex gap-1 mb-6 border-b border-gray-200">
           ${this.SECTIONS.map(s => `
-            <button data-sec="${s.key}" class="sec-tab px-4 py-2 text-sm font-semibold border-b-2 ${s.key === this.state.activeSection ? 'border-brand-500 text-gray-900' : 'border-transparent text-gray-500'}">
+            <button data-sec="${s.key}" class="sec-tab px-4 py-2 text-sm font-semibold border-b-2 ${s.key === this._activeSection ? 'border-brand-500 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'}">
               <span class="mr-1">${s.icon}</span>${s.label}
             </button>
           `).join('')}
@@ -37,21 +38,53 @@ window.PagesContent = {
       </div>
     `;
 
+    // Bind tabs
     document.querySelectorAll('.sec-tab').forEach(b => {
       b.addEventListener('click', () => {
-        this.state.activeSection = b.getAttribute('data-sec');
-        Router.render();
+        this._activeSection = b.getAttribute('data-sec');
+        // Update tab styles
+        document.querySelectorAll('.sec-tab').forEach(other => {
+          const active = other.getAttribute('data-sec') === this._activeSection;
+          other.classList.toggle('border-brand-500', active);
+          other.classList.toggle('text-gray-900', active);
+          other.classList.toggle('border-transparent', !active);
+          other.classList.toggle('text-gray-500', !active);
+        });
+        this.renderActiveSection();
       });
     });
 
-    if (this.state.activeSection === 'process')  await this.renderProcess();
-    if (this.state.activeSection === 'marquee')  await this.renderMarquee();
+    await this.renderActiveSection();
+  },
+
+  async renderActiveSection() {
+    const container = document.getElementById('sec-content');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-8 text-gray-400">⏳ Načítavam…</div>';
+
+    try {
+      if (this._activeSection === 'process')  await this.renderProcess();
+      else if (this._activeSection === 'marquee')  await this.renderMarquee();
+    } catch (err) {
+      console.error('[pages_content]', err);
+      const c = document.getElementById('sec-content');
+      if (c) c.innerHTML = `<div class="bg-red-50 p-4 rounded text-red-600 text-sm">${Utils.escape(err.message || String(err))}</div>`;
+    }
   },
 
   // ============ PROCESS STEPS ============
   async renderProcess() {
+    let items = [];
+    try {
+      items = await API.list(this.PROCESS_TABLE);
+    } catch (err) {
+      const c = document.getElementById('sec-content');
+      if (c) c.innerHTML = `<div class="bg-red-50 p-4 rounded text-red-600 text-sm">${Utils.escape(err.message)}</div>`;
+      return;
+    }
+
     const container = document.getElementById('sec-content');
-    const items = await API.list(this.PROCESS_TABLE);
+    if (!container) return;
 
     container.innerHTML = `
       <div class="flex justify-end mb-4">
@@ -61,25 +94,29 @@ window.PagesContent = {
       </div>
 
       <div class="space-y-2">
-        ${items.length === 0 ? '<div class="bg-white border border-gray-200 rounded-2xl p-12 text-center text-sm text-gray-500">Zatiaľ žiadne kroky.</div>' : items.map(s => this.stepRow(s)).join('')}
+        ${items.length === 0 ? '<div class="bg-white border border-gray-200 rounded-2xl p-12 text-center text-sm text-gray-500">V jazyku <strong>' + State.activeLang.toUpperCase() + '</strong> zatiaľ žiadne kroky.</div>' : items.map(s => this.stepRow(s)).join('')}
       </div>
     `;
 
-    document.getElementById('add-step').addEventListener('click', () => this.openStepEditor(null));
+    const addBtn = document.getElementById('add-step');
+    if (addBtn) addBtn.addEventListener('click', () => this.openStepEditor(null));
+
     document.querySelectorAll('[data-step-id]').forEach(el => {
       const id = el.getAttribute('data-step-id');
       const item = items.find(i => i.id === id);
-      el.querySelector('[data-action="edit"]')?.addEventListener('click', () => this.openStepEditor(item));
-      el.querySelector('[data-action="delete"]')?.addEventListener('click', () => this.removeStep(item));
+      const editBtn = el.querySelector('[data-action="edit"]');
+      const deleteBtn = el.querySelector('[data-action="delete"]');
+      if (editBtn) editBtn.addEventListener('click', () => this.openStepEditor(item));
+      if (deleteBtn) deleteBtn.addEventListener('click', () => this.removeStep(item));
     });
   },
 
   stepRow(item) {
     return `
-      <div data-step-id="${item.id}" class="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
+      <div data-step-id="${Utils.escape(item.id)}" class="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
         <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-500 to-pink-500 text-white font-bold flex items-center justify-center text-sm">${Utils.escape(item.step_number || '?')}</div>
         <div class="flex-1">
-          <div class="font-semibold text-gray-900">${Utils.escape(item.title)}</div>
+          <div class="font-semibold text-gray-900">${Utils.escape(item.title || '')}</div>
           <div class="text-xs text-gray-500 line-clamp-1">${Utils.escape(item.description || '')}</div>
         </div>
         <div class="flex gap-1">
@@ -176,14 +213,30 @@ window.PagesContent = {
 
   // ============ MARQUEE ============
   async renderMarquee() {
-    const container = document.getElementById('sec-content');
-    const { data } = await window.supabase.from(this.MARQUEE_TABLE)
-      .select('*').eq('lang', State.activeLang).maybeSingle();
+    let data = null;
+    try {
+      const res = await window.supabase.from(this.MARQUEE_TABLE)
+        .select('*').eq('lang', State.activeLang).maybeSingle();
+      if (res.error) throw res.error;
+      data = res.data;
+    } catch (err) {
+      const c = document.getElementById('sec-content');
+      if (c) c.innerHTML = `<div class="bg-red-50 p-4 rounded text-red-600 text-sm">${Utils.escape(err.message)}</div>`;
+      return;
+    }
 
-    const words = data?.words || [];
+    const container = document.getElementById('sec-content');
+    if (!container) return;
+
+    const words = (data && Array.isArray(data.words)) ? data.words : [];
 
     container.innerHTML = `
       <div class="bg-white border border-gray-200 rounded-2xl p-6">
+        ${!data ? `
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-xs text-amber-800">
+            💡 Pre jazyk <strong>${State.activeLang.toUpperCase()}</strong> ešte nie sú definované rolujúce slová. Vyplňte a uložte.
+          </div>
+        ` : ''}
         <h2 class="font-semibold text-gray-900 mb-2">Rolujúce slová na webe</h2>
         <p class="text-xs text-gray-500 mb-4">Slová oddeľte čiarkami. Zobrazujú sa v marquee páse na hlavnej stránke (napr. "Merané výsledky · Bez záväzku · Transparentne").</p>
 
@@ -196,22 +249,27 @@ window.PagesContent = {
       </div>
     `;
 
-    document.getElementById('save-marquee').addEventListener('click', async () => {
-      const input = document.getElementById('marquee-input').value;
-      const newWords = input.split(',').map(w => w.trim()).filter(Boolean);
+    const saveBtn = document.getElementById('save-marquee');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const inputEl = document.getElementById('marquee-input');
+        if (!inputEl) return;
+        const input = inputEl.value;
+        const newWords = input.split(',').map(w => w.trim()).filter(Boolean);
 
-      try {
-        await window.supabase.from(this.MARQUEE_TABLE).upsert({
-          lang: State.activeLang,
-          words: newWords,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'lang' });
-        Utils.toast('Uložené ✓', 'success');
-        State.buildPending = true;
-        this.renderMarquee();
-      } catch (err) {
-        Utils.toast('Chyba: ' + err.message, 'error');
-      }
-    });
+        try {
+          await window.supabase.from(this.MARQUEE_TABLE).upsert({
+            lang: State.activeLang,
+            words: newWords,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'lang' });
+          Utils.toast('Uložené ✓', 'success');
+          State.buildPending = true;
+          this.renderMarquee();
+        } catch (err) {
+          Utils.toast('Chyba: ' + err.message, 'error');
+        }
+      });
+    }
   },
 };
