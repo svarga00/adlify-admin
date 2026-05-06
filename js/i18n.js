@@ -109,12 +109,12 @@ window.I18N = {
 
     return `
       <div class="i18n-field-group" data-i18n-group="${fieldName}">
-        <div class="flex items-center justify-between mb-2">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
           <label class="text-xs font-semibold text-gray-700 uppercase tracking-wider">${Utils.escape(label)}</label>
-          <div class="flex items-center gap-1">
-            <div class="flex gap-1">${tabs}</div>
+          <div class="flex items-center gap-1 flex-wrap">
+            <div class="flex gap-1 flex-wrap">${tabs}</div>
             <button type="button" data-i18n-translate="${fieldName}"
-              class="ml-2 px-2.5 py-1 text-xs font-semibold rounded-md bg-gradient-to-r from-brand-500 to-pink-500 text-white hover:opacity-90 transition"
+              class="ml-1 px-2 py-1 text-xs font-semibold rounded-md bg-gradient-to-r from-brand-500 to-pink-500 text-white hover:opacity-90 transition whitespace-nowrap"
               title="Preložiť SK → ostatné jazyky cez Claude">
               ✨ Preložiť
             </button>
