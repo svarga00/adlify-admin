@@ -115,7 +115,7 @@ window.Blog = {
     const drawer = Utils.drawer(`${isNew ? 'Pridať' : 'Upraviť'} článok`, `<form id="blog-form" class="space-y-5">
 
       <!-- Translate-all banner -->
-      <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex items-center justify-between gap-3">
+      <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div class="flex-1 min-w-0">
           <div class="text-sm font-semibold text-gray-900">Hromadný preklad</div>
           <div class="text-xs text-gray-600 mt-0.5">Preloží všetky SK polia naraz do CS / HU / EN / DE.</div>
@@ -142,7 +142,7 @@ window.Blog = {
         ${I18N.renderField('title', data.title, { label: 'Názov článku', required: true })}
         ${I18N.renderField('excerpt', data.excerpt, { label: 'Krátky popis (1-2 vety pod nadpisom)', type: 'textarea', rows: 2, required: true })}
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Dátum publikovania</label>
             <input type="date" name="published_at" value="${Utils.escape(pubDate)}"
@@ -176,7 +176,7 @@ window.Blog = {
       <!-- AUTHOR -->
       <div class="bg-gray-50 rounded-xl p-4 space-y-4">
         <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Autor</div>
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="col-span-2">${I18N.renderField('author_name', data.author_name, { label: 'Meno autora' })}</div>
           <div>
             <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Iniciály (PN)</label>
