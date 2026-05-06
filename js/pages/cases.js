@@ -102,6 +102,18 @@ window.Cases = {
 
     const drawer = Utils.drawer(`${isNew ? 'Pridať' : 'Upraviť'} prípadovku`, `<form id="case-form" class="space-y-5">
 
+        <!-- TRANSLATE ALL banner -->
+        <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex items-center justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-semibold text-gray-900">Hromadný preklad všetkých polí</div>
+            <div class="text-xs text-gray-600 mt-0.5">Preloží všetky SK polia naraz do CS / HU / EN / DE. Existujúce preklady sa prepíšu.</div>
+          </div>
+          <button type="button" id="translate-all-btn"
+            class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-500 to-pink-500 text-white text-sm font-semibold rounded-lg shadow-sm hover:opacity-90 transition disabled:opacity-50">
+            <span>✨</span><span id="translate-all-label">Preložiť všetko</span>
+          </button>
+        </div>
+
         <!-- ZÁKLADNÉ -->
         <div class="bg-gray-50 rounded-xl p-4 space-y-4">
           <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Základné</div>
@@ -219,6 +231,62 @@ window.Cases = {
 
     // Bind i18n switchers + translate buttons
     I18N.bindFieldSwitchers(drawer.body);
+
+    // Translate ALL — bulk preklad všetkých lang fields naraz
+    const translateAllBtn = drawer.body.querySelector('#translate-all-btn');
+    const translateAllLabel = drawer.body.querySelector('#translate-all-label');
+    translateAllBtn?.addEventListener('click', async () => {
+      // Pozbieraj všetky SK hodnoty z lang fields
+      const groups = drawer.body.querySelectorAll('[data-i18n-group]');
+      const skTexts = {};
+      groups.forEach(group => {
+        const fieldName = group.dataset.i18nGroup;
+        const skInput = group.querySelector('[data-lang-input="sk"]');
+        if (skInput && skInput.value.trim()) {
+          skTexts[fieldName] = skInput.value;
+        }
+      });
+
+      if (Object.keys(skTexts).length === 0) {
+        Utils.toast('Žiadne SK polia na preklad. Najprv vyplň aspoň jedno SK pole.', 'warning');
+        return;
+      }
+
+      translateAllBtn.disabled = true;
+      translateAllLabel.textContent = `Prekladám ${Object.keys(skTexts).length} polí...`;
+
+      try {
+        // 1 API call pre všetky polia naraz (Edge Function vie spracovať objekt)
+        const result = await API.translate(skTexts, 'sk', ['cs', 'hu', 'en', 'de'], {
+          preserve_html: true,  // markdown markery v challenge/approach/results
+        });
+
+        // Aplikuj preklady do field inputs
+        let appliedCount = 0;
+        for (const [fieldName, skValue] of Object.entries(skTexts)) {
+          const group = drawer.body.querySelector(`[data-i18n-group="${fieldName}"]`);
+          if (!group) continue;
+
+          for (const lang of ['cs', 'hu', 'en', 'de']) {
+            const translated = result[lang]?.[fieldName];
+            if (!translated) continue;
+            const input = group.querySelector(`[data-lang-input="${lang}"]`);
+            if (input) {
+              input.value = translated;
+              appliedCount++;
+            }
+          }
+        }
+
+        Utils.toast(`✓ Preložené ${Object.keys(skTexts).length} polí do 4 jazykov`, 'success');
+      } catch (err) {
+        console.error('Translate all error:', err);
+        Utils.toast('Preklad zlyhal: ' + err.message, 'error');
+      } finally {
+        translateAllBtn.disabled = false;
+        translateAllLabel.textContent = 'Preložiť všetko';
+      }
+    });
 
     // Live gradient preview
     const gradientInput = drawer.body.querySelector('[name="cover_gradient"]');
