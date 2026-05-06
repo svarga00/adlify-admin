@@ -2,12 +2,8 @@
 // Tieto budú nahradené plne funkčnými modulmi v Claude Code (vid ETAPA_C_HANDOFF.md)
 
 const STUB_MODULES = {
-  Testimonials:  { icon: '💬', title: 'Testimoniály',     table: 'web_testimonials' },
-  Blog:          { icon: '📝', title: 'Blog',             table: 'web_blog_posts' },
   Services:      { icon: '⚙️',  title: 'Služby',           table: 'web_services' },
-  Faq:           { icon: '❓', title: 'FAQ',              table: 'web_faq' },
   Pricing:       { icon: '💰', title: 'Cenník',           table: 'web_pricing' },
-  Clients:       { icon: '👥', title: 'Klienti (ticker)', table: 'web_clients' },
   Translations:  { icon: '🌍', title: 'UI texty',         table: 'web_translations' },
   PagesContent:  { icon: '📄', title: 'Sekcie stránok',   table: 'web_pages_content' },
   Navigation:    { icon: '🧭', title: 'Navigácia',        table: 'web_navigation' },
