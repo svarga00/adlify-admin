@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Adlify Admin</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22>🔧</text></svg>">
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50:  '#FFF4F0',
+              100: '#FFE4DA',
+              500: '#F16434',
+              600: '#E54E1A',
+              700: '#C23E10',
+              900: '#7A2807',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Supabase JS client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- TipTap WYSIWYG (pre fázu 3, blog/cases editor) -->
+  <!-- Načíta sa lazy keď sa otvorí editor -->
+
+  <!-- App config + modules -->
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/utils.js"></script>
+
+  <!-- Page modules -->
+  <script src="js/pages/dashboard.js"></script>
+  <script src="js/pages/testimonials.js"></script>
+  <script src="js/pages/cases.js"></script>
+  <script src="js/pages/blog.js"></script>
+  <script src="js/pages/services.js"></script>
+  <script src="js/pages/faq.js"></script>
+  <script src="js/pages/pricing.js"></script>
+  <script src="js/pages/translations.js"></script>
+  <script src="js/pages/pages_content.js"></script>
+  <script src="js/pages/navigation.js"></script>
+  <script src="js/pages/clients.js"></script>
+  <script src="js/pages/settings.js"></script>
+
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="bg-gray-50 antialiased">
+
+  <!-- Login screen (shown when not authenticated) -->
+  <div id="login-screen" class="hidden min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-pink-500 text-white text-2xl font-bold shadow-lg mb-4">A</div>
+        <h1 class="text-2xl font-bold text-gray-900">Adlify Admin</h1>
+        <p class="text-sm text-gray-500 mt-1">Prihláste sa pre správu webu</p>
+      </div>
+
+      <form id="login-form" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">E-mail</label>
+          <input type="email" name="email" required
+            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Heslo</label>
+          <input type="password" name="password" required
+            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+        </div>
+        <div id="login-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3"></div>
+        <button type="submit" id="login-submit"
+          class="w-full bg-gray-900 hover:bg-black text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
+          Prihlásiť sa
+        </button>
+      </form>
+
+      <p class="text-center text-xs text-gray-400 mt-6">
+        Adlify s.r.o. · v1.0
+      </p>
+    </div>
+  </div>
+
+  <!-- Main app shell (shown when authenticated) -->
+  <div id="app-shell" class="hidden min-h-screen flex">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col fixed top-0 bottom-0 left-0 z-40 transition-transform">
+      <div class="px-6 py-5 border-b border-gray-200">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-pink-500 text-white font-bold flex items-center justify-center text-sm">A</div>
+          <div>
+            <div class="font-semibold text-gray-900 text-sm">Adlify Admin</div>
+            <div class="text-xs text-gray-500">adlify.eu</div>
+          </div>
+        </div>
+      </div>
+
+      <nav id="sidebar-nav" class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        <!-- Items injected by layout.js -->
+      </nav>
+
+      <div class="border-t border-gray-200 p-3">
+        <button id="logout-btn"
+          class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition">
+          <span>↩</span>
+          <span>Odhlásiť</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="flex-1 ml-64">
+      <!-- Top bar -->
+      <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-200 h-14 flex items-center px-6 gap-4">
+        <button id="sidebar-toggle" class="md:hidden p-2 -ml-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+
+        <div class="flex-1">
+          <h2 id="page-title" class="text-base font-semibold text-gray-900">Dashboard</h2>
+        </div>
+
+        <!-- Language switcher -->
+        <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <button data-lang="sk" class="lang-btn px-3 py-1.5 text-xs font-semibold rounded-md transition">SK</button>
+          <button data-lang="cs" class="lang-btn px-3 py-1.5 text-xs font-semibold rounded-md transition">CS</button>
+          <button data-lang="hu" class="lang-btn px-3 py-1.5 text-xs font-semibold rounded-md transition">HU</button>
+          <button data-lang="en" class="lang-btn px-3 py-1.5 text-xs font-semibold rounded-md transition">EN</button>
+          <button data-lang="de" class="lang-btn px-3 py-1.5 text-xs font-semibold rounded-md transition">DE</button>
+        </div>
+
+        <!-- Publish button -->
+        <button id="publish-btn"
+          class="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-500 to-pink-500 text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition">
+          <span>📤</span>
+          <span>Publikovať</span>
+        </button>
+      </header>
+
+      <!-- Page content (each page module injects here) -->
+      <main id="page-content" class="p-6">
+        <div class="text-center py-20 text-gray-400">
+          <div class="text-4xl mb-2">⏳</div>
+          <p class="text-sm">Načítavam…</p>
+        </div>
+      </main>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 space-y-2"></div>
+  </div>
+
+  <!-- App initialization -->
+  <script>
+    // Init Supabase client
+    if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+      document.body.innerHTML = '<div style="padding: 40px; font-family: monospace; color: #b91c1c;">❌ Chýba Supabase config v <code>js/config.js</code>. Otvor súbor a doplň URL a anon key.</div>';
+    } else {
+      window.supabase = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+      });
+
+      // Boot
+      document.addEventListener('DOMContentLoaded', () => {
+        Auth.init();
+      });
+    }
+  </script>
+</body>
+</html>
