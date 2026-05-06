@@ -1,536 +1,416 @@
-// js/pages/pricing.js
-// Cenník — 3 plány, jednorazové projekty, porovnávacia tabuľka
+// js/pages/pricing.js — Cenník (web_pricing) — 3 plány s features
 
 window.Pricing = {
+  TABLE: 'web_pricing',
+
   async render() {
+    const items = await API.list(this.TABLE);
     const content = document.getElementById('page-content');
 
     content.innerHTML = `
       <div class="max-w-5xl mx-auto">
-        <div class="mb-6">
-          <h1 class="text-2xl font-bold text-gray-900">Cenník</h1>
-          <p class="text-sm text-gray-500 mt-1">3 plány, jednorazové projekty a porovnávacia tabuľka. Aktívny jazyk: <span class="font-mono uppercase font-semibold">${State.activeLang}</span></p>
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Cenník</h1>
+            <p class="text-sm text-gray-500 mt-1">${items.length} ${items.length === 1 ? 'plán' : 'plánov'}</p>
+          </div>
+          <button id="add-btn" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl">
+            <span>+</span><span>Pridať plán</span>
+          </button>
         </div>
 
-        <!-- Tabs -->
-        <div class="flex gap-1 mb-6 border-b border-gray-200">
-          <button data-tab="plans"    class="pricing-tab px-4 py-2 text-sm font-semibold border-b-2 border-transparent">Plány (3)</button>
-          <button data-tab="extras"   class="pricing-tab px-4 py-2 text-sm font-semibold border-b-2 border-transparent">Jednorazové</button>
-          <button data-tab="features" class="pricing-tab px-4 py-2 text-sm font-semibold border-b-2 border-transparent">Porovnávacia tabuľka</button>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          ${items.length === 0 ? `<div class="col-span-full bg-white border border-gray-200 rounded-2xl p-12 text-center">
+            <div class="text-3xl mb-2">💰</div>
+            <p class="text-sm text-gray-500">Zatiaľ žiadne plány.</p>
+          </div>` : items.map(i => this.card(i)).join('')}
         </div>
-
-        <div id="pricing-content"></div>
       </div>
     `;
 
-    document.querySelectorAll('.pricing-tab').forEach(btn => {
-      btn.addEventListener('click', () => this.showTab(btn.getAttribute('data-tab')));
-    });
-
-    // Default tab
-    this.showTab('plans');
-  },
-
-  showTab(tab) {
-    document.querySelectorAll('.pricing-tab').forEach(b => {
-      const active = b.getAttribute('data-tab') === tab;
-      b.classList.toggle('border-brand-500', active);
-      b.classList.toggle('text-gray-900', active);
-      b.classList.toggle('text-gray-500', !active);
-    });
-
-    if (tab === 'plans')    this.renderPlans();
-    if (tab === 'extras')   this.renderExtras();
-    if (tab === 'features') this.renderFeatures();
-  },
-
-  // ============ PLÁNY ============
-  async renderPlans() {
-    const container = document.getElementById('pricing-content');
-    container.innerHTML = '<div class="text-center py-12 text-gray-400">⏳ Načítavam…</div>';
-
-    const items = await API.list('web_pricing_plans');
-
-    container.innerHTML = `
-      <div class="flex justify-end mb-4">
-        <button id="add-plan" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl">
-          <span>+</span><span>Pridať plán</span>
-        </button>
-      </div>
-      <div class="space-y-2">
-        ${items.length === 0 ? '<div class="bg-white border border-gray-200 rounded-2xl p-12 text-center text-sm text-gray-500">Zatiaľ žiadne plány v tomto jazyku.</div>' : items.map(p => this.planRow(p)).join('')}
-      </div>
-    `;
-
-    document.getElementById('add-plan').addEventListener('click', () => this.openPlanEditor(null));
-    document.querySelectorAll('[data-plan-id]').forEach(el => {
-      const id = el.getAttribute('data-plan-id');
-      const item = items.find(i => i.id === id);
-      el.querySelector('[data-action="edit"]')?.addEventListener('click', () => this.openPlanEditor(item));
-      el.querySelector('[data-action="delete"]')?.addEventListener('click', () => this.removePlan(item));
+    document.getElementById('add-btn').addEventListener('click', () => this.openEditor(null));
+    items.forEach(item => {
+      const el = document.querySelector(`[data-id="${item.id}"]`);
+      if (!el) return;
+      el.querySelector('[data-action="edit"]')?.addEventListener('click', () => this.openEditor(item));
+      el.querySelector('[data-action="toggle"]')?.addEventListener('click', () => this.toggleVisibility(item));
+      el.querySelector('[data-action="popular"]')?.addEventListener('click', () => this.togglePopular(item));
+      el.querySelector('[data-action="delete"]')?.addEventListener('click', () => this.remove(item));
     });
   },
 
-  planRow(item) {
+  card(item) {
+    const pub = item.is_published !== false;
+    const popular = item.is_popular === true;
+    const name = I18N.t(item.name, 'sk');
+    const tagline = I18N.t(item.tagline, 'sk');
+    const features = Array.isArray(item.features) ? item.features : [];
+    const featureCount = features.length;
+    const includedCount = features.filter(f => f.included !== false).length;
+
     return `
-      <div data-plan-id="${item.id}" class="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-400 flex items-center gap-4">
-        <div class="flex-1">
-          <div class="flex items-center gap-2">
-            <div class="font-bold text-gray-900">${Utils.escape(item.name)}</div>
-            ${item.badge ? `<span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-brand-100 text-brand-700">${Utils.escape(item.badge)}</span>` : ''}
+      <div data-id="${item.id}" class="bg-white border ${popular ? 'border-brand-500 ring-2 ring-brand-200' : 'border-gray-200'} rounded-2xl p-5 relative">
+        ${popular ? '<div class="absolute -top-3 left-4 px-3 py-1 bg-gradient-to-r from-brand-500 to-pink-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full">★ Najpopulárnejšie</div>' : ''}
+
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <div class="text-xs font-mono text-gray-400 uppercase mb-1">/${Utils.escape(item.slug || '')}</div>
+            <h3 class="text-xl font-bold text-gray-900">${Utils.escape(name) || '<em class="text-gray-400">Bez mena</em>'}</h3>
+            <p class="text-xs text-gray-500 mt-1">${Utils.escape(tagline)}</p>
           </div>
-          <div class="text-sm text-gray-500 mt-0.5">${Utils.escape(item.tagline || '')}</div>
-          <div class="text-xs text-gray-600 mt-1"><strong>€${item.price_monthly}</strong>/mes · <strong>€${item.price_yearly}</strong>/rok · ${(item.features || []).length} features</div>
+          <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${pub ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}">
+            ${pub ? 'Live' : 'Skryté'}
+          </span>
         </div>
-        <div class="flex gap-1">
-          <button data-action="edit" class="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">✏️</button>
-          <button data-action="delete" class="w-9 h-9 rounded-lg hover:bg-red-50 hover:text-red-600 flex items-center justify-center text-gray-500">🗑️</button>
+
+        <div class="flex items-baseline gap-1 mb-3 pb-3 border-b border-gray-100">
+          <span class="text-3xl font-bold text-gray-900">€${item.price_monthly}</span>
+          <span class="text-sm text-gray-500">/mes</span>
+          ${item.price_setup ? `<span class="text-xs text-gray-400 ml-2">+ €${item.price_setup} setup</span>` : ''}
         </div>
-      </div>`;
+
+        <div class="text-xs text-gray-600 mb-4">
+          ${includedCount} z ${featureCount} features zaradených
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button data-action="edit" class="flex-1 px-3 py-2 text-xs font-semibold bg-gray-900 hover:bg-black text-white rounded-lg">Upraviť</button>
+          <button data-action="popular" class="px-2 py-2 text-xs ${popular ? 'text-amber-500 bg-amber-50' : 'text-gray-400 bg-gray-50'} hover:bg-amber-100 rounded-lg" title="${popular ? 'Odstrániť popular' : 'Označiť ako popular'}">★</button>
+          <button data-action="toggle" class="px-2 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">${pub ? '👁' : '🚫'}</button>
+          <button data-action="delete" class="px-2 py-2 text-xs text-red-600 hover:bg-red-50 rounded-lg">🗑</button>
+        </div>
+      </div>
+    `;
   },
 
-  openPlanEditor(item) {
+  openEditor(item) {
     const isNew = !item;
-    const data = item || { is_published: true, sort_order: 0, currency: 'EUR', features: [] };
-
-    const featuresList = (data.features || []).map((f, i) => `
-      <div class="feature-row flex gap-2 mb-2">
-        <input type="text" value="${Utils.escape(f)}" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
-        <button type="button" class="del-feat w-9 h-9 rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-500">🗑️</button>
-      </div>
-    `).join('');
-
-    const formHtml = `
-      <form id="t-form" class="space-y-5" onsubmit="return false;">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Plan key *</label>
-            <input type="text" name="plan_key" required value="${Utils.escape(data.plan_key || '')}" placeholder="starter / growth / scale"
-              ${item ? 'readonly' : ''}
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-mono ${item ? 'bg-gray-50' : ''}">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Názov *</label>
-            <input type="text" name="name" required value="${Utils.escape(data.name || '')}" placeholder="Starter"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Tagline</label>
-          <input type="text" name="tagline" value="${Utils.escape(data.tagline || '')}" placeholder="Pre živnostníkov a malé e-shopy"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-        </div>
-
-        <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Mesačne (€)</label>
-            <input type="number" step="0.01" name="price_monthly" value="${data.price_monthly || ''}"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Ročne (€)</label>
-            <input type="number" step="0.01" name="price_yearly" value="${data.price_yearly || ''}"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Mena</label>
-            <input type="text" name="currency" value="${Utils.escape(data.currency || 'EUR')}"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Badge (voliteľne)</label>
-          <input type="text" name="badge" value="${Utils.escape(data.badge || '')}" placeholder="NAJPOPULÁRNEJŠIE"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Features (zoznam)</label>
-          <div id="features-list">${featuresList}</div>
-          <button type="button" id="add-feature" class="mt-2 text-sm text-brand-500 hover:text-brand-700 font-medium">+ Pridať feature</button>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">CTA tlačidlo</label>
-            <input type="text" name="cta_label" value="${Utils.escape(data.cta_label || '')}" placeholder="Vybrať Starter"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">CTA URL</label>
-            <input type="text" name="cta_url" value="${Utils.escape(data.cta_url || '')}" placeholder="/kontakt"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Poradie</label>
-          <input type="number" name="sort_order" value="${data.sort_order || 0}"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-        </div>
-
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="is_published" ${data.is_published !== false ? 'checked' : ''} class="w-4 h-4">
-          <span class="text-sm text-gray-700">Zverejnené</span>
-        </label>
-      </form>
-    `;
-
-    const footer = `
-      ${item ? '<button id="del-btn" class="mr-auto px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg">Zmazať</button>' : ''}
-      <button id="cancel-btn" class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Zrušiť</button>
-      <button id="save-btn" class="px-5 py-2 text-sm font-semibold text-white bg-gray-900 hover:bg-black rounded-lg">${isNew ? 'Pridať' : 'Uložiť'}</button>
-    `;
-
-    const drawer = Utils.drawer(isNew ? 'Nový plán' : 'Upraviť plán', formHtml, { footer });
-
-    // Features add/remove
-    const addFeat = () => {
-      const list = drawer.body.querySelector('#features-list');
-      const row = document.createElement('div');
-      row.className = 'feature-row flex gap-2 mb-2';
-      row.innerHTML = `
-        <input type="text" placeholder="napr. 1 reklamná platforma" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
-        <button type="button" class="del-feat w-9 h-9 rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-500">🗑️</button>
-      `;
-      row.querySelector('.del-feat').addEventListener('click', () => row.remove());
-      list.appendChild(row);
-      row.querySelector('input').focus();
+    const data = item || {
+      slug: '',
+      name: I18N.empty(),
+      tagline: I18N.empty(),
+      cta_label: I18N.empty(),
+      price_monthly: 0,
+      price_setup: 0,
+      features: [],
+      is_popular: false,
+      is_published: true,
+      sort_order: 0,
     };
-    drawer.body.querySelector('#add-feature').addEventListener('click', addFeat);
-    drawer.body.querySelectorAll('.del-feat').forEach(b => b.addEventListener('click', e => e.target.closest('.feature-row').remove()));
 
-    drawer.footer.querySelector('#cancel-btn').addEventListener('click', drawer.close);
+    const drawer = Utils.drawer(`${isNew ? 'Pridať' : 'Upraviť'} plán`, `<form id="pricing-form" class="space-y-5">
 
-    drawer.footer.querySelector('#save-btn').addEventListener('click', async () => {
-      const payload = Utils.formData(drawer.body.querySelector('#t-form'));
-      payload.lang = State.activeLang;
-      // Collect features
-      payload.features = Array.from(drawer.body.querySelectorAll('.feature-row input')).map(i => i.value.trim()).filter(Boolean);
-
-      try {
-        if (item) await API.update('web_pricing_plans', item.id, payload);
-        else await API.insert('web_pricing_plans', payload);
-        Utils.toast('Uložené ✓', 'success');
-        State.buildPending = true;
-        drawer.close();
-        this.renderPlans();
-      } catch (err) {
-        Utils.toast('Chyba: ' + err.message, 'error');
-      }
-    });
-
-    if (item) {
-      drawer.footer.querySelector('#del-btn').addEventListener('click', async () => {
-        if (!await Utils.confirm('Zmazať tento plán?', { danger: true, confirmLabel: 'Zmazať' })) return;
-        await API.remove('web_pricing_plans', item.id);
-        Utils.toast('Zmazané', 'success');
-        State.buildPending = true;
-        drawer.close();
-        this.renderPlans();
-      });
-    }
-  },
-
-  async removePlan(item) {
-    if (!await Utils.confirm(`Zmazať plán "${item.name}"?`, { danger: true, confirmLabel: 'Zmazať' })) return;
-    await API.remove('web_pricing_plans', item.id);
-    Utils.toast('Zmazané', 'success');
-    State.buildPending = true;
-    this.renderPlans();
-  },
-
-  // ============ EXTRAS (jednorazové) ============
-  async renderExtras() {
-    const container = document.getElementById('pricing-content');
-    container.innerHTML = '<div class="text-center py-12 text-gray-400">⏳ Načítavam…</div>';
-    const items = await API.list('web_pricing_extras');
-
-    container.innerHTML = `
-      <div class="flex justify-end mb-4">
-        <button id="add-extra" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl">
-          <span>+</span><span>Pridať</span>
+      <!-- Translate-all -->
+      <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-gray-900">Hromadný preklad</div>
+          <div class="text-xs text-gray-600 mt-0.5">Preložia sa Name, Tagline, CTA a všetky features.</div>
+        </div>
+        <button type="button" id="translate-all-btn"
+          class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-500 to-pink-500 text-white text-sm font-semibold rounded-lg shadow-sm hover:opacity-90 transition disabled:opacity-50">
+          <span>✨</span><span id="translate-all-label">Preložiť všetko</span>
         </button>
       </div>
-      <div class="space-y-2">
-        ${items.length === 0 ? '<div class="bg-white border border-gray-200 rounded-2xl p-12 text-center text-sm text-gray-500">Zatiaľ žiadne jednorazové projekty.</div>' : items.map(e => this.extraRow(e)).join('')}
+
+      <!-- Základné -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+        <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Základné</div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Slug</label>
+          <input type="text" name="slug" required value="${Utils.escape(data.slug)}"
+            placeholder="growth"
+            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm font-mono">
+        </div>
+
+        ${I18N.renderField('name', data.name, { label: 'Názov plánu (Growth)', required: true })}
+        ${I18N.renderField('tagline', data.tagline, { label: 'Krátky podnadpis (Pre rastúce e-shopy)', type: 'textarea', rows: 2 })}
+        ${I18N.renderField('cta_label', data.cta_label, { label: 'CTA tlačidlo (Vybrať Growth)' })}
       </div>
-    `;
 
-    document.getElementById('add-extra').addEventListener('click', () => this.openExtraEditor(null));
-    document.querySelectorAll('[data-extra-id]').forEach(el => {
-      const id = el.getAttribute('data-extra-id');
-      const item = items.find(i => i.id === id);
-      el.querySelector('[data-action="edit"]')?.addEventListener('click', () => this.openExtraEditor(item));
-      el.querySelector('[data-action="delete"]')?.addEventListener('click', () => this.removeExtra(item));
-    });
-  },
-
-  extraRow(item) {
-    return `
-      <div data-extra-id="${item.id}" class="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-        <div class="flex-1">
-          <div class="font-semibold text-gray-900 text-sm">${Utils.escape(item.name)}</div>
-          <div class="text-xs text-gray-500 line-clamp-1">${Utils.escape(Utils.truncate(item.description, 100))}</div>
-        </div>
-        <div class="text-lg font-bold text-gray-900">€${item.price}</div>
-        <div class="flex gap-1">
-          <button data-action="edit" class="w-9 h-9 rounded-lg hover:bg-gray-100 text-gray-500">✏️</button>
-          <button data-action="delete" class="w-9 h-9 rounded-lg hover:bg-red-50 hover:text-red-600 text-gray-500">🗑️</button>
-        </div>
-      </div>`;
-  },
-
-  openExtraEditor(item) {
-    const isNew = !item;
-    const data = item || { is_published: true, sort_order: 0, currency: 'EUR' };
-
-    const formHtml = `
-      <form id="t-form" class="space-y-5" onsubmit="return false;">
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Kľúč *</label>
-          <input type="text" name="extra_key" required value="${Utils.escape(data.extra_key || '')}" ${item ? 'readonly' : ''}
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-mono ${item ? 'bg-gray-50' : ''}">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Názov *</label>
-          <input type="text" name="name" required value="${Utils.escape(data.name || '')}"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Popis</label>
-          <textarea name="description" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm resize-y">${Utils.escape(data.description || '')}</textarea>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
+      <!-- Cena -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+        <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Cena</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Cena (€)</label>
-            <input type="number" step="0.01" name="price" value="${data.price || ''}"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
+            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Mesačne (€, bez DPH)</label>
+            <input type="number" name="price_monthly" value="${data.price_monthly || 0}" min="0"
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">CTA tlačidlo</label>
-            <input type="text" name="cta_label" value="${Utils.escape(data.cta_label || 'Objednať')}"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
+            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Setup (€, jednoraz.)</label>
+            <input type="number" name="price_setup" value="${data.price_setup || 0}" min="0"
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Poradie</label>
+            <input type="number" name="sort_order" value="${data.sort_order || 0}"
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
           </div>
         </div>
+      </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Poradie</label>
-          <input type="number" name="sort_order" value="${data.sort_order || 0}"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
+      <!-- Features list -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Features (zoznam)</div>
+            <p class="text-xs text-gray-500 mt-1">Zaškrtnuté = je v pláne. Nezaškrtnuté = nie je v pláne (zobrazí sa preškrtnuté).</p>
+          </div>
+          <button type="button" id="features-add" class="text-xs font-semibold text-brand-600 hover:text-brand-700">+ Pridať feature</button>
         </div>
+        <div id="features-list" class="space-y-2"></div>
+      </div>
 
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="is_published" ${data.is_published !== false ? 'checked' : ''} class="w-4 h-4">
-          <span class="text-sm text-gray-700">Zverejnené</span>
+      <!-- Flagy -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="is_popular" ${data.is_popular ? 'checked' : ''} class="w-4 h-4">
+          <div>
+            <div class="text-sm font-semibold text-gray-900">★ Najpopulárnejší plán</div>
+            <div class="text-xs text-gray-500">Iba jeden plán môže mať tento badge</div>
+          </div>
         </label>
-      </form>
-    `;
-
-    const footer = `
-      ${item ? '<button id="del-btn" class="mr-auto px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg">Zmazať</button>' : ''}
-      <button id="cancel-btn" class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Zrušiť</button>
-      <button id="save-btn" class="px-5 py-2 text-sm font-semibold text-white bg-gray-900 hover:bg-black rounded-lg">${isNew ? 'Pridať' : 'Uložiť'}</button>
-    `;
-
-    const drawer = Utils.drawer(isNew ? 'Nový jednorazový projekt' : 'Upraviť', formHtml, { footer });
-    drawer.footer.querySelector('#cancel-btn').addEventListener('click', drawer.close);
-
-    drawer.footer.querySelector('#save-btn').addEventListener('click', async () => {
-      const payload = Utils.formData(drawer.body.querySelector('#t-form'));
-      payload.lang = State.activeLang;
-      try {
-        if (item) await API.update('web_pricing_extras', item.id, payload);
-        else await API.insert('web_pricing_extras', payload);
-        Utils.toast('Uložené ✓', 'success');
-        State.buildPending = true;
-        drawer.close();
-        this.renderExtras();
-      } catch (err) {
-        Utils.toast('Chyba: ' + err.message, 'error');
-      }
-    });
-
-    if (item) {
-      drawer.footer.querySelector('#del-btn').addEventListener('click', async () => {
-        if (!await Utils.confirm('Zmazať?', { danger: true, confirmLabel: 'Zmazať' })) return;
-        await API.remove('web_pricing_extras', item.id);
-        Utils.toast('Zmazané', 'success');
-        State.buildPending = true;
-        drawer.close();
-        this.renderExtras();
-      });
-    }
-  },
-
-  async removeExtra(item) {
-    if (!await Utils.confirm(`Zmazať "${item.name}"?`, { danger: true, confirmLabel: 'Zmazať' })) return;
-    await API.remove('web_pricing_extras', item.id);
-    Utils.toast('Zmazané', 'success');
-    State.buildPending = true;
-    this.renderExtras();
-  },
-
-  // ============ FEATURES (porovnávacia tabuľka) ============
-  async renderFeatures() {
-    const container = document.getElementById('pricing-content');
-    container.innerHTML = '<div class="text-center py-12 text-gray-400">⏳ Načítavam…</div>';
-
-    const items = await API.list('web_pricing_features');
-
-    // Group by category
-    const grouped = {};
-    items.forEach(i => {
-      const cat = i.category || 'Iné';
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(i);
-    });
-
-    container.innerHTML = `
-      <div class="flex justify-end mb-4">
-        <button id="add-feature-row" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl">
-          <span>+</span><span>Pridať riadok</span>
-        </button>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="is_published" ${data.is_published !== false ? 'checked' : ''} class="w-4 h-4">
+          <span class="text-sm font-semibold text-gray-900">Zverejniť</span>
+        </label>
       </div>
 
-      ${items.length === 0 ? `<div class="bg-white border border-gray-200 rounded-2xl p-12 text-center text-sm text-gray-500">Zatiaľ žiadne riadky porovnania.</div>` : `
-        <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <div class="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-600 uppercase">
-            <div class="col-span-5">Funkcia</div>
-            <div class="col-span-2 text-center">Starter</div>
-            <div class="col-span-2 text-center">Growth</div>
-            <div class="col-span-2 text-center">Scale</div>
-            <div class="col-span-1"></div>
-          </div>
-          ${Object.entries(grouped).map(([cat, list]) => `
-            <div>
-              <div class="px-4 py-2 bg-gray-50 text-xs font-bold text-gray-700 border-b border-gray-200">${Utils.escape(cat)}</div>
-              ${list.map(f => `
-                <div data-feature-id="${f.id}" class="grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-100 items-center hover:bg-gray-50">
-                  <div class="col-span-5 text-sm text-gray-900">${Utils.escape(f.label)}</div>
-                  <div class="col-span-2 text-center text-sm text-gray-700">${Utils.escape(f.starter_value || '—')}</div>
-                  <div class="col-span-2 text-center text-sm text-gray-700">${Utils.escape(f.growth_value || '—')}</div>
-                  <div class="col-span-2 text-center text-sm text-gray-700">${Utils.escape(f.scale_value || '—')}</div>
-                  <div class="col-span-1 flex justify-end gap-1">
-                    <button data-action="edit" class="w-8 h-8 rounded-lg hover:bg-gray-200 text-gray-500 text-xs">✏️</button>
-                    <button data-action="delete" class="w-8 h-8 rounded-lg hover:bg-red-100 hover:text-red-600 text-gray-500 text-xs">🗑️</button>
-                  </div>
+      <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="px-5 py-2.5 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl">
+          ${isNew ? 'Pridať' : 'Uložiť zmeny'}
+        </button>
+        <button type="button" data-close class="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:text-gray-900">Zrušiť</button>
+      </div>
+    </form>`);
+
+    I18N.bindFieldSwitchers(drawer.body);
+
+    // Features list builder
+    const featuresList = drawer.body.querySelector('#features-list');
+    const renderFeatures = (features) => {
+      featuresList.innerHTML = (features || []).map((f, i) => {
+        const labelObj = I18N.normalize(f.label);
+        return `
+          <div class="bg-white border border-gray-200 rounded-lg p-3" data-feature-row="${i}">
+            <div class="flex items-start gap-3">
+              <label class="flex items-center cursor-pointer flex-shrink-0 mt-2">
+                <input type="checkbox" data-feature-included ${f.included !== false ? 'checked' : ''} class="w-4 h-4">
+              </label>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1 flex-wrap mb-2">
+                  ${I18N.LANGS.map((lang, li) => `
+                    <button type="button" data-feature-tab="${lang}" data-feature-row-tab="${i}"
+                      class="lang-pill px-2 py-1 text-xs font-semibold rounded-md transition ${li === 0 ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}">
+                      ${I18N.LANG_FLAGS[lang]} ${lang.toUpperCase()}
+                    </button>
+                  `).join('')}
+                  <button type="button" data-feature-translate="${i}"
+                    class="px-2 py-1 text-xs font-semibold rounded-md bg-gradient-to-r from-brand-500 to-pink-500 text-white hover:opacity-90 transition">
+                    ✨
+                  </button>
                 </div>
-              `).join('')}
+                ${I18N.LANGS.map((lang, li) => `
+                  <input type="text" data-feature-input="${lang}" data-feature-row-input="${i}"
+                    value="${Utils.escape(labelObj[lang] || '')}"
+                    placeholder="Feature label (${I18N.LANG_NAMES[lang]})"
+                    ${li !== 0 ? 'class="hidden"' : ''}
+                    style="width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; font-size:13px;">
+                `).join('')}
+              </div>
+              <button type="button" data-feature-remove="${i}" class="flex-shrink-0 w-7 h-7 text-red-500 hover:bg-red-50 rounded-full flex items-center justify-center" title="Zmazať">🗑</button>
             </div>
-          `).join('')}
-        </div>
-      `}
-    `;
+          </div>
+        `;
+      }).join('');
 
-    document.getElementById('add-feature-row').addEventListener('click', () => this.openFeatureEditor(null));
-    document.querySelectorAll('[data-feature-id]').forEach(el => {
-      const id = el.getAttribute('data-feature-id');
-      const item = items.find(i => i.id === id);
-      el.querySelector('[data-action="edit"]')?.addEventListener('click', () => this.openFeatureEditor(item));
-      el.querySelector('[data-action="delete"]')?.addEventListener('click', () => this.removeFeature(item));
+      // Lang tab switcher
+      featuresList.querySelectorAll('[data-feature-row]').forEach(row => {
+        const idx = row.dataset.featureRow;
+        const tabs = row.querySelectorAll('[data-feature-tab]');
+        const inputs = row.querySelectorAll('[data-feature-input]');
+        tabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            const lang = tab.dataset.featureTab;
+            tabs.forEach(t => {
+              const isActive = t.dataset.featureTab === lang;
+              t.classList.toggle('bg-gray-900', isActive);
+              t.classList.toggle('text-white', isActive);
+              t.classList.toggle('bg-gray-100', !isActive);
+              t.classList.toggle('text-gray-600', !isActive);
+            });
+            inputs.forEach(input => {
+              input.classList.toggle('hidden', input.dataset.featureInput !== lang);
+            });
+          });
+        });
+      });
+
+      // Per-feature translate
+      featuresList.querySelectorAll('[data-feature-translate]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const idx = btn.dataset.featureTranslate;
+          const skInput = featuresList.querySelector(`[data-feature-input="sk"][data-feature-row-input="${idx}"]`);
+          if (!skInput?.value.trim()) {
+            Utils.toast('Najprv napíš SK text', 'warning');
+            return;
+          }
+          btn.disabled = true;
+          btn.textContent = '⏳';
+          try {
+            const result = await API.translate(skInput.value, 'sk', ['cs', 'hu', 'en', 'de']);
+            for (const lang of ['cs', 'hu', 'en', 'de']) {
+              const inp = featuresList.querySelector(`[data-feature-input="${lang}"][data-feature-row-input="${idx}"]`);
+              if (inp && result[lang]) inp.value = result[lang];
+            }
+            Utils.toast('✓ Preložené', 'success');
+          } catch (err) {
+            Utils.toast('Chyba: ' + err.message, 'error');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = '✨';
+          }
+        });
+      });
+
+      // Remove
+      featuresList.querySelectorAll('[data-feature-remove]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.dataset.featureRemove);
+          const current = this.collectFeatures(featuresList);
+          current.splice(idx, 1);
+          renderFeatures(current);
+        });
+      });
+    };
+
+    renderFeatures(data.features || []);
+    drawer.body.querySelector('#features-add').addEventListener('click', () => {
+      const current = this.collectFeatures(featuresList);
+      current.push({ label: I18N.empty(), included: true });
+      renderFeatures(current);
     });
-  },
 
-  openFeatureEditor(item) {
-    const isNew = !item;
-    const data = item || { sort_order: 0 };
+    // Translate-all (vrátane features)
+    drawer.body.querySelector('#translate-all-btn').addEventListener('click', async () => {
+      const btn = drawer.body.querySelector('#translate-all-btn');
+      const lbl = drawer.body.querySelector('#translate-all-label');
 
-    const formHtml = `
-      <form id="t-form" class="space-y-5" onsubmit="return false;">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Feature key *</label>
-            <input type="text" name="feature_key" required value="${Utils.escape(data.feature_key || '')}" placeholder="google_ads"
-              ${item ? 'readonly' : ''}
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-mono ${item ? 'bg-gray-50' : ''}">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Kategória</label>
-            <input type="text" name="category" value="${Utils.escape(data.category || '')}" placeholder="Kanály / Tracking / Reporting"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-        </div>
+      // Top-level lang fields
+      const groups = drawer.body.querySelectorAll('[data-i18n-group]');
+      const skTexts = {};
+      groups.forEach(g => {
+        const f = g.dataset.i18nGroup;
+        const sk = g.querySelector('[data-lang-input="sk"]');
+        if (sk?.value.trim()) skTexts[`top__${f}`] = sk.value;
+      });
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Popis funkcie *</label>
-          <input type="text" name="label" required value="${Utils.escape(data.label || '')}" placeholder="napr. Google Ads"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-        </div>
+      // Feature labels
+      const featureRows = featuresList.querySelectorAll('[data-feature-row]');
+      featureRows.forEach((row, i) => {
+        const sk = row.querySelector('[data-feature-input="sk"]');
+        if (sk?.value.trim()) skTexts[`feat__${i}`] = sk.value;
+      });
 
-        <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Starter</label>
-            <input type="text" name="starter_value" value="${Utils.escape(data.starter_value || '')}" placeholder="✓ / —"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Growth</label>
-            <input type="text" name="growth_value" value="${Utils.escape(data.growth_value || '')}" placeholder="✓ / voliteľne"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Scale</label>
-            <input type="text" name="scale_value" value="${Utils.escape(data.scale_value || '')}" placeholder="✓"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-          </div>
-        </div>
+      if (!Object.keys(skTexts).length) {
+        Utils.toast('Žiadne SK polia na preklad', 'warning');
+        return;
+      }
 
-        <p class="text-xs text-gray-500">Tip: <code>✓</code> pre dostupné, <code>—</code> pre nedostupné, <code>voliteľne</code> alebo konkrétny text (napr. "48 hod")</p>
+      btn.disabled = true;
+      lbl.textContent = `Prekladám ${Object.keys(skTexts).length} polí...`;
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Poradie</label>
-          <input type="number" name="sort_order" value="${data.sort_order || 0}"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm">
-        </div>
-      </form>
-    `;
-
-    const footer = `
-      ${item ? '<button id="del-btn" class="mr-auto px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg">Zmazať</button>' : ''}
-      <button id="cancel-btn" class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Zrušiť</button>
-      <button id="save-btn" class="px-5 py-2 text-sm font-semibold text-white bg-gray-900 hover:bg-black rounded-lg">${isNew ? 'Pridať' : 'Uložiť'}</button>
-    `;
-
-    const drawer = Utils.drawer(isNew ? 'Nový riadok porovnania' : 'Upraviť', formHtml, { footer });
-    drawer.footer.querySelector('#cancel-btn').addEventListener('click', drawer.close);
-
-    drawer.footer.querySelector('#save-btn').addEventListener('click', async () => {
-      const payload = Utils.formData(drawer.body.querySelector('#t-form'));
-      payload.lang = State.activeLang;
       try {
-        if (item) await API.update('web_pricing_features', item.id, payload);
-        else await API.insert('web_pricing_features', payload);
-        Utils.toast('Uložené ✓', 'success');
-        State.buildPending = true;
-        drawer.close();
-        this.renderFeatures();
+        const result = await API.translate(skTexts, 'sk', ['cs', 'hu', 'en', 'de']);
+
+        for (const lang of ['cs', 'hu', 'en', 'de']) {
+          const out = result[lang] || {};
+          // Top-level
+          for (const key of Object.keys(out)) {
+            if (key.startsWith('top__')) {
+              const fieldName = key.slice(5);
+              const group = drawer.body.querySelector(`[data-i18n-group="${fieldName}"]`);
+              const inp = group?.querySelector(`[data-lang-input="${lang}"]`);
+              if (inp) inp.value = out[key];
+            } else if (key.startsWith('feat__')) {
+              const idx = key.slice(6);
+              const inp = featuresList.querySelector(`[data-feature-input="${lang}"][data-feature-row-input="${idx}"]`);
+              if (inp) inp.value = out[key];
+            }
+          }
+        }
+
+        Utils.toast(`✓ Preložených ${Object.keys(skTexts).length} polí`, 'success');
       } catch (err) {
         Utils.toast('Chyba: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        lbl.textContent = 'Preložiť všetko';
       }
     });
 
-    if (item) {
-      drawer.footer.querySelector('#del-btn').addEventListener('click', async () => {
-        if (!await Utils.confirm('Zmazať tento riadok?', { danger: true, confirmLabel: 'Zmazať' })) return;
-        await API.remove('web_pricing_features', item.id);
-        State.buildPending = true;
-        drawer.close();
-        this.renderFeatures();
+    drawer.body.querySelector('#pricing-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await this.save(item, drawer);
+    });
+    drawer.body.querySelector('[data-close]')?.addEventListener('click', () => drawer.close());
+  },
+
+  collectFeatures(featuresList) {
+    const rows = featuresList.querySelectorAll('[data-feature-row]');
+    return Array.from(rows).map(row => {
+      const included = row.querySelector('[data-feature-included]').checked;
+      const label = I18N.empty();
+      I18N.LANGS.forEach(lang => {
+        const inp = row.querySelector(`[data-feature-input="${lang}"]`);
+        label[lang] = inp?.value || '';
       });
+      return { label, included };
+    }).filter(f => I18N.t(f.label, 'sk').trim());
+  },
+
+  async save(item, drawer) {
+    const form = drawer.body.querySelector('#pricing-form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Ukladám...';
+
+    try {
+      const langFields = ['name', 'tagline', 'cta_label'];
+      const payload = I18N.serializeForm(form, langFields);
+      payload.features = this.collectFeatures(drawer.body.querySelector('#features-list'));
+
+      if (!payload.slug?.trim()) throw new Error('Slug je povinný');
+      if (!I18N.t(payload.name, 'sk')?.trim()) throw new Error('Názov (SK) je povinný');
+
+      if (item) await API.update(this.TABLE, item.id, payload);
+      else      await API.insert(this.TABLE, payload);
+
+      Utils.toast('✓ Uložené', 'success');
+      drawer.close();
+      this.render();
+    } catch (err) {
+      console.error(err);
+      Utils.toast('Chyba: ' + err.message, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = item ? 'Uložiť zmeny' : 'Pridať';
     }
   },
 
-  async removeFeature(item) {
-    if (!await Utils.confirm(`Zmazať "${item.label}"?`, { danger: true, confirmLabel: 'Zmazať' })) return;
-    await API.remove('web_pricing_features', item.id);
-    Utils.toast('Zmazané', 'success');
-    State.buildPending = true;
-    this.renderFeatures();
+  async toggleVisibility(item) {
+    try { await API.toggle(this.TABLE, item.id, 'is_published', item.is_published); this.render(); }
+    catch (err) { Utils.toast('Chyba: ' + err.message, 'error'); }
+  },
+
+  async togglePopular(item) {
+    try { await API.toggle(this.TABLE, item.id, 'is_popular', item.is_popular); this.render(); }
+    catch (err) { Utils.toast('Chyba: ' + err.message, 'error'); }
+  },
+
+  async remove(item) {
+    if (!confirm(`Zmazať plán "${I18N.t(item.name, 'sk')}"?`)) return;
+    try { await API.remove(this.TABLE, item.id); Utils.toast('✓ Zmazané', 'success'); this.render(); }
+    catch (err) { Utils.toast('Chyba: ' + err.message, 'error'); }
   },
 };
