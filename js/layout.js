@@ -102,10 +102,28 @@ window.Layout = {
 
   bindSidebarToggle() {
     const toggle = document.getElementById('sidebar-toggle');
+    const closeBtn = document.getElementById('sidebar-close');
+    const backdrop = document.getElementById('sidebar-backdrop');
     const sidebar = document.getElementById('sidebar');
-    if (!toggle || !sidebar) return;
-    toggle.addEventListener('click', () => {
-      sidebar.classList.toggle('-translate-x-full');
+    if (!sidebar) return;
+
+    const open = () => {
+      sidebar.classList.remove('-translate-x-full');
+      backdrop?.classList.remove('hidden');
+    };
+    const close = () => {
+      sidebar.classList.add('-translate-x-full');
+      backdrop?.classList.add('hidden');
+    };
+
+    toggle?.addEventListener('click', open);
+    closeBtn?.addEventListener('click', close);
+    backdrop?.addEventListener('click', close);
+
+    // Auto-close po klike na sidebar link (na mobile)
+    sidebar.addEventListener('click', (e) => {
+      const link = e.target.closest('a[href^="#"]');
+      if (link && window.innerWidth < 768) close();
     });
   },
 };
