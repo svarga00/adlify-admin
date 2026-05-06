@@ -1,7 +1,14 @@
-// js/pages/faq.js
+// js/pages/faq.js — FAQ (web_faq)
 
 window.Faq = {
   TABLE: 'web_faq',
+
+  CATEGORIES: [
+    { value: 'general',   label: 'Všeobecné',  emoji: '💡' },
+    { value: 'pricing',   label: 'Ceny',       emoji: '💰' },
+    { value: 'process',   label: 'Proces',     emoji: '⚙️' },
+    { value: 'technical', label: 'Technické',  emoji: '🔧' },
+  ],
 
   async render() {
     const items = await API.list(this.TABLE);
@@ -9,8 +16,9 @@ window.Faq = {
 
     // Group by category
     const grouped = {};
+    this.CATEGORIES.forEach(c => grouped[c.value] = []);
     items.forEach(i => {
-      const cat = i.category || 'Iné';
+      const cat = i.category || 'general';
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(i);
     });
@@ -20,31 +28,38 @@ window.Faq = {
         <div class="flex items-center justify-between mb-6">
           <div>
             <h1 class="text-2xl font-bold text-gray-900">FAQ</h1>
-            <p class="text-sm text-gray-500 mt-1">Často kladené otázky. Aktívny jazyk: <span class="font-mono uppercase font-semibold">${State.activeLang}</span></p>
+            <p class="text-sm text-gray-500 mt-1">${items.length} ${items.length === 1 ? 'otázka' : 'otázok'}</p>
           </div>
           <button id="add-btn" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl">
             <span>+</span><span>Pridať otázku</span>
           </button>
         </div>
 
-        ${items.length === 0 ? this.empty() : Object.entries(grouped).map(([cat, list]) => `
-          <div class="mb-6">
-            <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 px-2">${Utils.escape(cat)}</h2>
-            <div class="space-y-2">
-              ${list.map(i => this.row(i)).join('')}
+        ${items.length === 0 ? this.empty() : this.CATEGORIES.map(cat => {
+          const list = grouped[cat.value] || [];
+          if (!list.length) return '';
+          return `
+            <div class="mb-6">
+              <h2 class="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-2">
+                <span>${cat.emoji}</span>
+                <span>${cat.label}</span>
+                <span class="text-xs font-normal text-gray-400">(${list.length})</span>
+              </h2>
+              <div class="space-y-2">
+                ${list.map(i => this.row(i)).join('')}
+              </div>
             </div>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       </div>
     `;
 
     document.getElementById('add-btn').addEventListener('click', () => this.openEditor(null));
-
-    document.querySelectorAll('[data-id]').forEach(el => {
-      const id = el.getAttribute('data-id');
-      const item = items.find(i => i.id === id);
+    items.forEach(item => {
+      const el = document.querySelector(`[data-id="${item.id}"]`);
+      if (!el) return;
       el.querySelector('[data-action="edit"]')?.addEventListener('click', () => this.openEditor(item));
-      el.querySelector('[data-action="toggle"]')?.addEventListener('click', () => this.toggle(item));
+      el.querySelector('[data-action="toggle"]')?.addEventListener('click', () => this.toggleVisibility(item));
       el.querySelector('[data-action="delete"]')?.addEventListener('click', () => this.remove(item));
     });
   },
@@ -52,125 +67,148 @@ window.Faq = {
   empty() {
     return `<div class="bg-white border border-gray-200 rounded-2xl p-12 text-center">
       <div class="text-3xl mb-2">❓</div>
-      <p class="text-sm text-gray-500">V jazyku <strong>${State.activeLang.toUpperCase()}</strong> zatiaľ žiadne otázky.</p>
+      <p class="text-sm text-gray-500">Zatiaľ žiadne FAQ.</p>
     </div>`;
   },
 
   row(item) {
     const pub = item.is_published !== false;
+    const question = I18N.t(item.question, 'sk');
+    const answer = I18N.t(item.answer, 'sk');
     return `
-      <div data-id="${item.id}" class="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-400 transition flex items-center gap-4">
+      <div data-id="${item.id}" class="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-400 transition flex items-start gap-3">
         <div class="flex-1 min-w-0">
-          <div class="font-semibold text-gray-900 text-sm mb-1">${Utils.escape(item.question)}</div>
-          <div class="text-xs text-gray-500 line-clamp-1">${Utils.escape(Utils.truncate(item.answer, 120))}</div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="font-semibold text-gray-900 text-sm">${Utils.escape(question) || '<em class="text-gray-400">Bez otázky</em>'}</span>
+            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${pub ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}">
+              ${pub ? 'Live' : 'Skryté'}
+            </span>
+          </div>
+          <div class="text-xs text-gray-600 mt-1">${Utils.escape(Utils.truncate(answer, 120))}</div>
         </div>
-        <span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${pub ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
-          ${pub ? 'Live' : 'Skryté'}
-        </span>
-        <div class="flex gap-1">
-          <button data-action="toggle" title="${pub ? 'Skryť' : 'Zverejniť'}" class="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">${pub ? '👁️' : '🚫'}</button>
-          <button data-action="edit" title="Upraviť" class="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">✏️</button>
-          <button data-action="delete" title="Zmazať" class="w-9 h-9 rounded-lg hover:bg-red-50 hover:text-red-600 flex items-center justify-center text-gray-500">🗑️</button>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button data-action="toggle" class="px-2 py-1.5 text-xs text-gray-600 hover:text-gray-900" title="${pub ? 'Skryť' : 'Zverejniť'}">${pub ? '👁' : '🚫'}</button>
+          <button data-action="edit" class="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 rounded-lg">Upraviť</button>
+          <button data-action="delete" class="px-2 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg">🗑</button>
         </div>
-      </div>`;
+      </div>
+    `;
   },
 
   openEditor(item) {
     const isNew = !item;
-    const data = item || { is_published: true, sort_order: 0 };
+    const data = item || {
+      category: 'general',
+      question: I18N.empty(),
+      answer: I18N.empty(),
+      is_published: true,
+      sort_order: 0,
+    };
 
-    const formHtml = `
-      <form id="t-form" class="space-y-5" onsubmit="return false;">
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Otázka *</label>
-          <input type="text" name="question" required value="${Utils.escape(data.question || '')}"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+    const drawer = Utils.drawer(`${isNew ? 'Pridať' : 'Upraviť'} otázku`, `<form id="faq-form" class="space-y-5">
+
+      <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex items-center justify-between gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-gray-900">Hromadný preklad</div>
+          <div class="text-xs text-gray-600 mt-0.5">SK → CS / HU / EN / DE.</div>
         </div>
+        <button type="button" id="translate-all-btn"
+          class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-500 to-pink-500 text-white text-sm font-semibold rounded-lg shadow-sm hover:opacity-90 transition disabled:opacity-50">
+          <span>✨</span><span id="translate-all-label">Preložiť všetko</span>
+        </button>
+      </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Odpoveď *</label>
-          <textarea name="answer" rows="5" required
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 resize-y">${Utils.escape(data.answer || '')}</textarea>
-        </div>
-
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Kategória</label>
-            <input type="text" name="category" value="${Utils.escape(data.category || '')}" placeholder="napr. Spolupráca, Cenník"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Kategória</label>
+            <select name="category" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+              ${this.CATEGORIES.map(c => `<option value="${c.value}" ${data.category === c.value ? 'selected' : ''}>${c.emoji} ${c.label}</option>`).join('')}
+            </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Poradie</label>
+            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Poradie</label>
             <input type="number" name="sort_order" value="${data.sort_order || 0}"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100">
+              class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
           </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Kľúč (key)</label>
-          <input type="text" name="faq_key" required value="${Utils.escape(data.faq_key || '')}" placeholder="napr. min_kontrakt"
-            ${item ? 'readonly' : ''}
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 font-mono ${item ? 'bg-gray-50' : ''}">
-          <p class="text-[11px] text-gray-500 mt-1">Spája všetky jazykové verzie. Nemení sa po vytvorení.</p>
-        </div>
+        ${I18N.renderField('question', data.question, { label: 'Otázka', required: true })}
+        ${I18N.renderField('answer', data.answer, { label: 'Odpoveď', type: 'textarea', rows: 6, required: true })}
+      </div>
 
-        <label class="flex items-center gap-2 cursor-pointer">
+      <div class="bg-gray-50 rounded-xl p-4">
+        <label class="flex items-center gap-3 cursor-pointer">
           <input type="checkbox" name="is_published" ${data.is_published !== false ? 'checked' : ''} class="w-4 h-4">
-          <span class="text-sm text-gray-700">Zverejnené</span>
+          <span class="text-sm font-semibold text-gray-900">Zverejniť na webe</span>
         </label>
-      </form>
-    `;
+      </div>
 
-    const footer = `
-      ${item ? '<button id="del-btn" class="mr-auto px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg">Zmazať</button>' : ''}
-      <button id="cancel-btn" class="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Zrušiť</button>
-      <button id="save-btn" class="px-5 py-2 text-sm font-semibold text-white bg-gray-900 hover:bg-black rounded-lg">${isNew ? 'Pridať' : 'Uložiť'}</button>
-    `;
+      <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="px-5 py-2.5 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl">
+          ${isNew ? 'Pridať' : 'Uložiť zmeny'}
+        </button>
+        <button type="button" data-close class="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:text-gray-900">Zrušiť</button>
+      </div>
+    </form>`);
 
-    const drawer = Utils.drawer(isNew ? 'Nová otázka' : 'Upraviť otázku', formHtml, { footer });
+    I18N.bindFieldSwitchers(drawer.body);
+    Blog._bindTranslateAll(drawer.body);
 
-    drawer.footer.querySelector('#cancel-btn').addEventListener('click', drawer.close);
-
-    drawer.footer.querySelector('#save-btn').addEventListener('click', async () => {
-      const form = drawer.body.querySelector('#t-form');
-      const payload = Utils.formData(form);
-      payload.lang = State.activeLang;
-
-      try {
-        if (item) await API.update(this.TABLE, item.id, payload);
-        else await API.insert(this.TABLE, payload);
-        Utils.toast('Uložené ✓', 'success');
-        State.buildPending = true;
-        drawer.close();
-        Router.render();
-      } catch (err) {
-        Utils.toast('Chyba: ' + err.message, 'error');
-      }
+    drawer.body.querySelector('#faq-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await this.save(item, drawer);
     });
+    drawer.body.querySelector('[data-close]')?.addEventListener('click', () => drawer.close());
+  },
 
-    if (item) {
-      drawer.footer.querySelector('#del-btn').addEventListener('click', async () => {
-        if (!await Utils.confirm('Naozaj zmazať túto otázku?', { danger: true, confirmLabel: 'Zmazať' })) return;
-        await API.remove(this.TABLE, item.id);
-        Utils.toast('Zmazané', 'success');
-        State.buildPending = true;
-        drawer.close();
-        Router.render();
-      });
+  async save(item, drawer) {
+    const form = drawer.body.querySelector('#faq-form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Ukladám...';
+
+    try {
+      const payload = I18N.serializeForm(form, ['question', 'answer']);
+
+      if (!I18N.t(payload.question, 'sk')?.trim()) throw new Error('Otázka (SK) je povinná');
+      if (!I18N.t(payload.answer, 'sk')?.trim()) throw new Error('Odpoveď (SK) je povinná');
+
+      if (item) {
+        await API.update(this.TABLE, item.id, payload);
+      } else {
+        await API.insert(this.TABLE, payload);
+      }
+
+      Utils.toast('✓ Uložené', 'success');
+      drawer.close();
+      this.render();
+    } catch (err) {
+      console.error(err);
+      Utils.toast('Chyba: ' + err.message, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = item ? 'Uložiť zmeny' : 'Pridať';
     }
   },
 
-  async toggle(item) {
-    await API.toggle(this.TABLE, item.id, 'is_published', item.is_published);
-    State.buildPending = true;
-    Router.render();
+  async toggleVisibility(item) {
+    try {
+      await API.toggle(this.TABLE, item.id, 'is_published', item.is_published);
+      Utils.toast(item.is_published ? 'Skryté' : 'Zverejnené', 'success');
+      this.render();
+    } catch (err) {
+      Utils.toast('Chyba: ' + err.message, 'error');
+    }
   },
 
   async remove(item) {
-    if (!await Utils.confirm(`Zmazať otázku "${Utils.truncate(item.question, 50)}"?`, { danger: true, confirmLabel: 'Zmazať' })) return;
-    await API.remove(this.TABLE, item.id);
-    Utils.toast('Zmazané', 'success');
-    State.buildPending = true;
-    Router.render();
+    if (!confirm(`Zmazať otázku?`)) return;
+    try {
+      await API.remove(this.TABLE, item.id);
+      Utils.toast('✓ Zmazané', 'success');
+      this.render();
+    } catch (err) {
+      Utils.toast('Chyba: ' + err.message, 'error');
+    }
   },
 };
