@@ -93,7 +93,7 @@ window.Testimonials = {
     const drawer = Utils.drawer(`${isNew ? 'Pridať' : 'Upraviť'} testimoniál`, `<form id="testimonial-form" class="space-y-5">
 
       <!-- Translate-all -->
-      <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex items-center justify-between gap-3">
+      <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div class="flex-1 min-w-0">
           <div class="text-sm font-semibold text-gray-900">Hromadný preklad</div>
           <div class="text-xs text-gray-600 mt-0.5">SK → CS / HU / EN / DE.</div>
@@ -127,7 +127,7 @@ window.Testimonials = {
 
       <!-- RATING + ORDER + PUBLISH -->
       <div class="bg-gray-50 rounded-xl p-4 space-y-4">
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Hodnotenie (1–5)</label>
             <select name="rating" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
