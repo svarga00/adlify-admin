@@ -45,7 +45,7 @@ window.Team = {
 
   row(item) {
     const pub = item.is_published !== false;
-    const role = I18N.t(item.role, 'sk');
+    const role = I18N.t(item.role, 'sk') || '<em class="text-gray-400">Bez pozície</em>';
 
     const photo = item.photo_url
       ? `<img src="${Utils.escape(item.photo_url)}" alt="" class="w-12 h-12 rounded-full object-cover bg-gray-100 border border-gray-200 flex-shrink-0">`
@@ -61,7 +61,7 @@ window.Team = {
               ${pub ? 'Live' : 'Skryté'}
             </span>
           </div>
-          <div class="text-xs text-gray-500 mb-1">${Utils.escape(role)}</div>
+          <div class="text-xs text-gray-500 mb-1">${role}</div>
           <div class="text-xs text-gray-400 font-mono">${Utils.escape(item.email || '')}</div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
@@ -73,7 +73,7 @@ window.Team = {
     `;
   },
 
-  async openEditor(item) {
+  openEditor(item) {
     const isNew = !item;
     const data = item || {
       name: '',
@@ -81,136 +81,175 @@ window.Team = {
       email: '',
       phone: '',
       photo_url: '',
-      role: {},
-      bio: {},
+      role: I18N.empty(),
+      bio: I18N.empty(),
       is_published: true,
       sort_order: 0,
     };
 
-    Modal.open(`${isNew ? 'Pridať' : 'Upraviť'} člena tímu`, `
-      <form id="team-form" class="space-y-4">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Meno *</label>
-            <input type="text" name="name" value="${Utils.escape(data.name)}" required
+    const drawer = Utils.drawer(`${isNew ? 'Pridať' : 'Upraviť'} člena tímu`, `<form id="team-form" class="space-y-5">
+
+      <!-- Translate-all -->
+      <div class="bg-gradient-to-r from-brand-50 to-pink-50 border border-brand-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-gray-900">Hromadný preklad</div>
+          <div class="text-xs text-gray-600 mt-0.5">SK → CS / HU / EN / DE.</div>
+        </div>
+        <button type="button" id="translate-all-btn"
+          class="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-500 to-pink-500 text-white text-sm font-semibold rounded-lg shadow-sm hover:opacity-90 transition disabled:opacity-50">
+          <span>✨</span><span id="translate-all-label">Preložiť všetko</span>
+        </button>
+      </div>
+
+      <!-- IDENTIFIKÁCIA -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+        <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Identifikácia</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Meno *</label>
+            <input type="text" name="name" value="${Utils.escape(data.name || '')}" required
+              placeholder="Štefan Varga"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-900" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Iniciály *</label>
-            <input type="text" name="initials" value="${Utils.escape(data.initials)}" required maxlength="3"
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Iniciály *</label>
+            <input type="text" name="initials" value="${Utils.escape(data.initials || '')}" required maxlength="3"
+              placeholder="ŠV"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-900" />
           </div>
         </div>
+      </div>
 
-        ${I18N.renderField('role', data.role, { label: 'Pozícia / role' })}
+      <!-- POZÍCIA (multilang) -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+        <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Pozícia</div>
+        ${I18N.renderField('role', data.role, { label: 'Pozícia / role (Zakladateľ, Head of Marketing...)' })}
+      </div>
 
-        <div class="grid grid-cols-2 gap-3">
+      <!-- KONTAKT -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+        <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Kontakt</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">E-mail</label>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">E-mail</label>
             <input type="email" name="email" value="${Utils.escape(data.email || '')}"
+              placeholder="info@adlify.eu"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-900" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Telefón</label>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Telefón</label>
             <input type="tel" name="phone" value="${Utils.escape(data.phone || '')}"
+              placeholder="+421 ..."
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-900" />
           </div>
         </div>
+      </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Foto URL (voliteľné)</label>
-          <input type="url" name="photo_url" value="${Utils.escape(data.photo_url || '')}"
-            placeholder="https://..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-900" />
-          ${ImageUploader ? `<button type="button" id="upload-photo" class="mt-2 text-xs text-blue-600 hover:underline">📤 Nahrať obrázok</button>` : ''}
-        </div>
+      <!-- FOTKA -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+        ${Uploader.render('photo_url', 'team-photos', data.photo_url, {
+          label: 'Profilová fotka (voliteľné)',
+          hint: 'JPG / PNG, ideálne štvorcové, ~400×400 px',
+        })}
+      </div>
 
-        ${I18N.renderField('bio', data.bio, { label: 'Bio (voliteľné)', type: 'textarea', rows: 3 })}
+      <!-- BIO (multilang, voliteľné) -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+        <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Bio (voliteľné)</div>
+        ${I18N.renderField('bio', data.bio, { label: 'Krátky popis', type: 'textarea', rows: 3 })}
+      </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <label class="flex items-center gap-2">
-            <input type="checkbox" name="is_published" ${data.is_published !== false ? 'checked' : ''} />
-            <span class="text-sm">Zverejnené</span>
-          </label>
+      <!-- PORADIE + PUBLISH -->
+      <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
           <div>
-            <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Poradie (sort)</label>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Poradie (sort)</label>
             <input type="number" name="sort_order" value="${data.sort_order || 0}"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
           </div>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="is_published" ${data.is_published !== false ? 'checked' : ''} class="w-4 h-4">
+            <span class="text-sm font-semibold text-gray-900">Zverejniť na webe</span>
+          </label>
         </div>
+      </div>
 
-        <div class="flex justify-end gap-2 pt-4 border-t">
-          <button type="button" id="cancel" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Zrušiť</button>
-          <button type="submit" class="px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-lg">
-            ${isNew ? 'Vytvoriť' : 'Uložiť'}
-          </button>
-        </div>
-      </form>
-    `);
+      <div class="flex items-center gap-3 pt-2">
+        <button type="submit" class="px-5 py-2.5 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-xl">
+          ${isNew ? 'Pridať' : 'Uložiť zmeny'}
+        </button>
+        <button type="button" data-close class="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:text-gray-900">Zrušiť</button>
+      </div>
+    </form>`);
 
-    document.getElementById('cancel').addEventListener('click', () => Modal.close());
+    I18N.bindFieldSwitchers(drawer.body);
+    Uploader.bind(drawer.body);
+    if (window.Blog?._bindTranslateAll) Blog._bindTranslateAll(drawer.body);
 
-    // Image uploader
-    if (window.ImageUploader) {
-      document.getElementById('upload-photo')?.addEventListener('click', async () => {
-        const url = await ImageUploader.pick();
-        if (url) {
-          document.querySelector('[name="photo_url"]').value = url;
-        }
-      });
-    }
-
-    document.getElementById('team-form').addEventListener('submit', async (e) => {
+    drawer.body.querySelector('#team-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const fd = new FormData(e.target);
-      const payload = {
-        name:         fd.get('name'),
-        initials:     fd.get('initials'),
-        email:        fd.get('email') || null,
-        phone:        fd.get('phone') || null,
-        photo_url:    fd.get('photo_url') || null,
-        role:         I18N.collectField('role'),
-        bio:          I18N.collectField('bio'),
-        is_published: fd.get('is_published') === 'on',
-        sort_order:   parseInt(fd.get('sort_order') || '0', 10),
-      };
-
-      try {
-        if (isNew) {
-          await API.create(this.TABLE, payload);
-          Utils.toast('Člen tímu pridaný', 'success');
-        } else {
-          await API.update(this.TABLE, item.id, payload);
-          Utils.toast('Uložené', 'success');
-        }
-        State.buildPending = true;
-        Modal.close();
-        this.render();
-      } catch (err) {
-        Utils.toast('Chyba: ' + (err.message || err), 'error');
-      }
+      await this.save(item, drawer);
     });
+    drawer.body.querySelector('[data-close]')?.addEventListener('click', () => drawer.close());
+  },
+
+  async save(item, drawer) {
+    const form = drawer.body.querySelector('#team-form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Ukladám...';
+
+    try {
+      const langFields = ['role', 'bio'];
+      const payload = I18N.serializeForm(form, langFields);
+
+      // Statické polia (overwrite po serializeForm aby sme mali istotu)
+      payload.name         = form.querySelector('[name="name"]').value.trim();
+      payload.initials     = form.querySelector('[name="initials"]').value.trim();
+      payload.email        = form.querySelector('[name="email"]').value.trim() || null;
+      payload.phone        = form.querySelector('[name="phone"]').value.trim() || null;
+      payload.photo_url    = form.querySelector('[name="photo_url"]')?.value.trim() || null;
+      payload.is_published = form.querySelector('[name="is_published"]').checked;
+      payload.sort_order   = parseInt(form.querySelector('[name="sort_order"]').value || '0', 10);
+
+      if (!payload.name) throw new Error('Meno je povinné');
+      if (!payload.initials) throw new Error('Iniciály sú povinné');
+
+      if (item) {
+        await API.update(this.TABLE, item.id, payload);
+      } else {
+        await API.insert(this.TABLE, payload);
+      }
+
+      Utils.toast('✓ Uložené', 'success');
+      drawer.close();
+      this.render();
+    } catch (err) {
+      console.error(err);
+      Utils.toast('Chyba: ' + err.message, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = item ? 'Uložiť zmeny' : 'Pridať';
+    }
   },
 
   async toggleVisibility(item) {
     try {
-      await API.update(this.TABLE, item.id, { is_published: !item.is_published });
-      State.buildPending = true;
+      await API.toggle(this.TABLE, item.id, 'is_published', item.is_published);
+      Utils.toast(item.is_published ? 'Skryté' : 'Zverejnené', 'success');
       this.render();
     } catch (err) {
-      Utils.toast('Chyba: ' + (err.message || err), 'error');
+      Utils.toast('Chyba: ' + err.message, 'error');
     }
   },
 
   async remove(item) {
-    if (!confirm(`Vymazať "${item.name}"? Túto akciu nemožno vrátiť.`)) return;
+    if (!confirm(`Zmazať "${item.name}"?`)) return;
     try {
       await API.remove(this.TABLE, item.id);
-      Utils.toast('Vymazané', 'success');
-      State.buildPending = true;
+      Utils.toast('✓ Zmazané', 'success');
       this.render();
     } catch (err) {
-      Utils.toast('Chyba: ' + (err.message || err), 'error');
+      Utils.toast('Chyba: ' + err.message, 'error');
     }
   },
 };
