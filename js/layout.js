@@ -20,7 +20,7 @@ window.Layout = {
       },
       {
         title: 'Obsah',
-        items: ['testimonials', 'cases', 'blog', 'services', 'faq', 'pricing', 'clients'],
+        items: ['testimonials', 'cases', 'blog', 'services', 'faq', 'pricing', 'clients', 'team'],
       },
       {
         title: 'Sekcie webu',

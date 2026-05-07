@@ -14,6 +14,7 @@ window.Router = {
     'pages':         { module: 'PagesContent',  title: 'Sekcie stránok',     icon: '📄' },
     'navigation':    { module: 'Navigation',    title: 'Navigácia',          icon: '🧭' },
     'clients':       { module: 'Clients',       title: 'Klienti (ticker)',   icon: '👥' },
+    'team':          { module: 'Team',           title: 'Tím',                icon: '🧑‍💼' },
     'settings':      { module: 'Settings',      title: 'Nastavenia',         icon: '🔧' },
   },
 
