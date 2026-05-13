@@ -16,6 +16,7 @@ window.Settings = {
         contact_email: 'info@adlify.eu',
         contact_phone: '',
         contact_address: '',
+        office_address: '',
         company_name: '',
         company_ico: '',
         company_dic: '',
@@ -74,10 +75,19 @@ window.Settings = {
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Adresa (1 riadok)</label>
-              <input type="text" name="contact_address" value="${Utils.escape(data.contact_address || '')}"
-                placeholder="Záhradnícka 12, 821 08 Bratislava"
+              <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Adresa kancelárie</label>
+              <input type="text" name="office_address" value="${Utils.escape(data.office_address || '')}"
+                placeholder="Podzámska 4/A, 940 01 Nové Zámky"
                 class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+              <div class="text-xs text-gray-500 mt-1">Kde sa stretávate s klientmi. Zobrazí sa v kontakte ako "Kancelária".</div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Fakturačná adresa (sídlo firmy)</label>
+              <input type="text" name="contact_address" value="${Utils.escape(data.contact_address || '')}"
+                placeholder="Sládkovičova 1560/16, 986 01 Fiľakovo"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+              <div class="text-xs text-gray-500 mt-1">Sídlo firmy z OR. Zobrazí sa v sekcii "Fakturačné údaje".</div>
             </div>
           </div>
 
